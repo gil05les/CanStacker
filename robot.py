@@ -303,7 +303,7 @@ def put_tcp_target(x, y, z, roll, pitch, yaw):
             "coordinate": {"x": x, "y": y, "z": z},
             "rotation": {"roll": roll, "pitch": pitch, "yaw": yaw},
         },
-        "speed": 50
+        "speed": 200
     }
 
     print(f"📡 Sending move: {data}")
