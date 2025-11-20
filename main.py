@@ -4,7 +4,7 @@ import math
 
 from coordination_transformation_camera_to_robot import camera_to_robot
 from detect_single_frame import detect_cans
-from config import BOT_NAME, CONFIG_POSITIONS, DETECTION_FILE, GRIPPER_CLOSE, GRIPPER_OPEN, STACK_POSITIONS, Z_LIFT, Z_PICK, Z_2ND_ROW
+from config import BOT_NAME, CONFIG_POSITIONS, DETECTION_FILE, GRIPPER_CLOSE, GRIPPER_OPEN, STACK_POSITIONS_3, STACK_POSITIONS_6, STACK_Z_TARGETS_3, STACK_Z_TARGETS_6, Z_LIFT, Z_PICK
 from robot_client import token, get_operator, post_operator, delete_operator, get_tcp_target, put_tcp_target, put_gripper, get_gripper, initialize
 
 bot = BOT_NAME
@@ -71,7 +71,7 @@ def toggle():
         put_gripper(GRIPPER_CLOSE)
 
 
-def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack):
+def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack, z_target):
     print(f"Picking can {i} at {x_robot:.1f}, {y_robot:.1f}")
 
     move_to_absolute(x_robot, y_robot, Z_LIFT)
@@ -86,14 +86,11 @@ def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack):
     move_to_absolute(x_robot, y_robot, Z_LIFT)
     time.sleep(10)
 
-    print(f"Placing can {i} at {x_stack}, {y_stack}")
+    print(f"Placing can {i} at {x_stack}, {y_stack} (z target {z_target})")
     move_to_absolute(x_stack, y_stack, Z_LIFT)
     time.sleep(10)
 
-    if i == 2:
-        move_to_absolute(x_stack, y_stack, Z_2ND_ROW)
-    else:
-        move_to_absolute(x_stack, y_stack, Z_PICK)
+    move_to_absolute(x_stack, y_stack, z_target)
     time.sleep(10)
 
     toggle()
@@ -188,15 +185,31 @@ def auto_stack():
     time.sleep(10)
 
     detections_px = read_all_detections()
-    detections_robot = [camera_to_robot(u, v) for (u, v) in detections_px]
+    detections_px_sorted = sorted(detections_px, key=lambda p: p[0])  # left -> right
+
+    if len(detections_px_sorted) < 3:
+        print("Not enough cans detected (need at least 3). Aborting stacking.")
+        return
+
+    if len(detections_px_sorted) >= 6:
+        selected_px = detections_px_sorted[:6]
+        stack_positions = STACK_POSITIONS_6
+        z_targets = STACK_Z_TARGETS_6
+        print("Using 2-row layout (6 cans).")
+    else:
+        selected_px = detections_px_sorted[:3]
+        stack_positions = STACK_POSITIONS_3
+        z_targets = STACK_Z_TARGETS_3
+        print("Using single-row layout (3 cans). Extra detections ignored." if len(detections_px_sorted) > 3 else "Using single-row layout (3 cans).")
+
+    detections_robot = [camera_to_robot(u, v) for (u, v) in selected_px]
 
     print("Detections (robot coordinates, file order):")
     for d in detections_robot:
         print(f"x={d[0]:.1f}, y={d[1]:.1f}")
 
-    for i, (x_r, y_r) in enumerate(detections_robot[:3]):
-        x_stack, y_stack = STACK_POSITIONS[i]
-        pick_and_place_can(i, x_r, y_r, x_stack, y_stack)
+    for i, ((x_r, y_r), (x_stack, y_stack), z_target) in enumerate(zip(detections_robot, stack_positions, z_targets)):
+        pick_and_place_can(i, x_r, y_r, x_stack, y_stack, z_target)
 
     print("Stacking complete.")
 
