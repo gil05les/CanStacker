@@ -1,37 +1,92 @@
-import requests
 import time
 import math
-from coord_transform import camera_to_robot   # NEW: uses full homography
+from coord_transform import camera_to_robot   # uses full homography
 
 bot = "cherrybot"
 DETECTION_FILE = "detected_coords.txt"
 
 # -----------------------------------------------------------
-# STACK POSITION SETTINGS (BOTTOM, BOTTOM, TOP)
+# STACK POSITION SETTINGS (PYRAMIDS UP TO 6 CANS)
 # -----------------------------------------------------------
 
-STACK_POSITIONS = [
-    (0,   -400),   # bottom-left can
-    (70,  -400),   # bottom-right can
-    (35,  -400)    # top can (middle)
-]
-
-# Z heights
-CANHIGHT = 72  # mm
+CANHIGHT = 72  # mm  (can height)
 Z_PICK = 200
 Z_LIFT = 300
-Z_TOP = Z_PICK + CANHIGHT     # slightly higher so top can doesn't crash
 
-CONFIG_POSITIONS = [
-    (0,   -400),
-    (100,  -400),
-    (0,   -300),
-    (100, -300)
-]
+# -----------------------------------------------------------
+# HELPER: compute pyramid positions for 1–6 cans  # NEW
+# -----------------------------------------------------------
+def get_stack_positions(num_cans):
+    """
+    Stacks all cans at y = -300.
+    Bottom row starts at x = -100 and goes right with spacing = 70.
+    """
+    y = -300.0               # fixed row
+    spacing = 70.0
+    half = spacing / 2
 
-# Z heights for config mode
-Z_CONFIG_LIFT = 300
-Z_CONFIG_PLACE = 200
+    # Bottom row (max 3 cans)
+    bottom = [
+        -100.0,
+        -100.0 + spacing,
+        -100.0 + 2*spacing
+    ]  # [-100, -30, 40]
+
+    # Middle row (2 cans)
+    center = (bottom[0] + bottom[2]) / 2   # -30
+    mid = [
+        center - half,   # -65
+        center + half    # 5
+    ]
+
+    # Top row (1 can)
+    top = [center]       # -30
+
+    def z(layer):
+        return Z_PICK + layer * CANHIGHT
+
+    n = min(max(num_cans, 0), 6)
+    positions = []
+
+    if n == 1:
+        positions.append((top[0], y, z(2)))
+        return positions
+
+    if n == 2:
+        positions.append((mid[0], y, z(1)))
+        positions.append((mid[1], y, z(1)))
+        return positions
+
+    if n == 3:
+        positions.append((bottom[0], y, z(0)))
+        positions.append((bottom[1], y, z(0)))
+        positions.append((bottom[2], y, z(0)))
+        return positions
+
+    if n == 4:
+        positions.append((bottom[0], y, z(0)))
+        positions.append((bottom[1], y, z(0)))
+        positions.append((bottom[2], y, z(0)))
+        positions.append((mid[0],    y, z(1)))
+        return positions
+
+    if n == 5:
+        positions.append((bottom[0], y, z(0)))
+        positions.append((bottom[1], y, z(0)))
+        positions.append((bottom[2], y, z(0)))
+        positions.append((mid[0],    y, z(1)))
+        positions.append((mid[1],    y, z(1)))
+        return positions
+
+    # full pyramid (3 + 2 + 1)
+    positions.append((bottom[0], y, z(0)))
+    positions.append((bottom[1], y, z(0)))
+    positions.append((bottom[2], y, z(0)))
+    positions.append((mid[0],    y, z(1)))
+    positions.append((mid[1],    y, z(1)))
+    positions.append((top[0],    y, z(2)))
+
+    return positions
 # -----------------------------------------------------------
 # READ ALL DETECTED CANS FROM FILE
 # -----------------------------------------------------------
@@ -80,8 +135,8 @@ def rotate(angle):
     x, y, z, roll, pitch, yaw = coords
     theta = math.radians(-angle)
 
-    x_new = x*math.cos(theta) - y*math.sin(theta)
-    y_new = x*math.sin(theta) + y*math.cos(theta)
+    x_new = x * math.cos(theta) - y * math.sin(theta)
+    y_new = x * math.sin(theta) + y * math.cos(theta)
     yaw_new = yaw - angle
 
     put_tcp_target(x_new, y_new, z, roll, pitch, yaw_new)
@@ -102,9 +157,9 @@ def toggle():
 
 
 # -----------------------------------------------------------
-# PICK AND PLACE ONE CAN
+# PICK AND PLACE ONE CAN  (now takes z_stack)  # NEW
 # -----------------------------------------------------------
-def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack):
+def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack, z_stack):
     print(f"\n🔵 PICK CAN {i} at: x={x_robot:.1f}, y={y_robot:.1f}")
 
     # Move above can
@@ -124,15 +179,12 @@ def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack):
     time.sleep(10)
 
     # Move above stack position
-    print(f"🟢 PLACE CAN {i} at: x={x_stack:.1f}, y={y_stack:.1f}")
+    print(f"🟢 PLACE CAN {i} at: x={x_stack:.1f}, y={y_stack:.1f}, z={z_stack:.1f}")
     move_to_absolute(x_stack, y_stack, Z_LIFT)
     time.sleep(10)
 
-    # Lower to stacking height
-    if i == 2:
-        move_to_absolute(x_stack, y_stack, Z_TOP)
-    else:
-        move_to_absolute(x_stack, y_stack, Z_PICK)
+    # Lower to stacking height for this layer
+    move_to_absolute(x_stack, y_stack, z_stack)
     time.sleep(10)
 
     # Release
@@ -165,6 +217,7 @@ def log_on():
 def log_off():
     delete_operator(token)
     print("Logged off.")
+
 
 def config_mode():
     print("\n⚙️ ENTERING CONFIG MODE")
@@ -207,6 +260,7 @@ def config_mode():
 
     print("\n🎉 CONFIGURATION COMPLETE — 4 CANS ARE PLACED.\n")
 
+
 # -----------------------------------------------------------
 # MAIN AUTO STACK SEQUENCE
 # -----------------------------------------------------------
@@ -225,22 +279,33 @@ def auto_stack():
     # Read all detected cans from file
     detections_px = read_all_detections()
 
-    # Convert to robot coordinates
+    # Convert to robot coordinates (keep FILE ORDER)
     detections_robot = [camera_to_robot(u, v) for (u, v) in detections_px]
 
-# KEEP FILE ORDER → no sorting
-# detections_robot.sort(key=lambda p: p[0])
+    num_cans = min(len(detections_robot), 6)
+    print(f"\n📦 Number of cans detected: {num_cans}")
+
+    if num_cans == 0:
+        print("⚠️ No cans to stack.")
+        return
+
+    stack_positions = get_stack_positions(num_cans)
 
     print("\n📌 DETECTIONS (robot coords, file order):")
-    for d in detections_robot:
+    for d in detections_robot[:num_cans]:
         print(f"   x={d[0]:.1f}, y={d[1]:.1f}")
 
-    # Pick & stack the first 3 cans
-    for i, (x_r, y_r) in enumerate(detections_robot[:3]):
-        x_stack, y_stack = STACK_POSITIONS[i]
-        pick_and_place_can(i, x_r, y_r, x_stack, y_stack)
+    print("\n🏗️ Using stack layout:")
+    for i, (xs, ys, zs) in enumerate(stack_positions):
+        print(f"   Slot {i}: x={xs:.1f}, y={ys:.1f}, z={zs:.1f}")
 
-    print("\n🎉 STACKING COMPLETE! A 3-CAN TOWER WAS BUILT.\n")
+    # Pick & stack cans according to file order and chosen pyramid
+    for i in range(num_cans):
+        x_r, y_r = detections_robot[i]
+        x_stack, y_stack, z_stack = stack_positions[i]
+        pick_and_place_can(i, x_r, y_r, x_stack, y_stack, z_stack)
+
+    print("\n🎉 STACKING COMPLETE!\n")
 
 
 # -----------------------------------------------------------
