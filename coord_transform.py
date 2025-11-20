@@ -4,35 +4,30 @@
 # ---------------------------------------------
 import numpy as np
 import cv2
+from config import CONFIG_POSITIONS
+
+
 
 # ---------------------------------------------
 # Calibration points
 # ---------------------------------------------
-# Robot coordinates in mm
-CAN_A_R = (-0.0, -400.0)
-CAN_B_R = (100.0, -400.0)
-CAN_C_R = (0.0, -300.0)
-CAN_D_R = (100.0, -300.0)
+# Robot coordinates in mm (Robot moves automatically to these positions in the config mode)
+CAN_0_ROBOT, CAN_1_ROBOT, CAN_2_ROBOT, CAN_3_ROBOT = CONFIG_POSITIONS
 
-
-
-
-
-# Camera pixel coordinates (px)
-CAN_A_C = (420.6000, 263.4000)
-CAN_B_C = (281.4000, 256.2000)
-CAN_C_C = (412.2000, 397.8000)
-CAN_D_C = (275.4000, 391.8000)
+# Camera pixel coordinates (px) corresponding to the above robot positions (These have to be measured with detection_one_picture.py)
+CAN_0_CAMERA = (420.6000, 263.4000)
+CAN_1_CAMERA = (281.4000, 256.2000)
+CAN_2_CAMERA = (412.2000, 397.8000)
+CAN_3_CAMERA = (275.4000, 391.8000)
 
 # ---------------------------------------------
 # Build 3×3 homography H  such that:
 #   [x, y, 1]^T  =  H  ·  [u, v, 1]^T
 # ---------------------------------------------
-src_pts = np.array([CAN_A_C, CAN_B_C, CAN_C_C, CAN_D_C], dtype=np.float32)
-dst_pts = np.array([CAN_A_R, CAN_B_R, CAN_C_R, CAN_D_R], dtype=np.float32)
+camera_points = np.array([CAN_0_CAMERA, CAN_1_CAMERA, CAN_2_CAMERA, CAN_3_CAMERA], dtype=np.float32)
+robot_points = np.array([CAN_0_ROBOT, CAN_1_ROBOT, CAN_2_ROBOT, CAN_3_ROBOT], dtype=np.float32)
 
-H, _ = cv2.findHomography(src_pts, dst_pts)
-
+H, _ = cv2.findHomography(camera_points, robot_points)
 
 # ---------------------------------------------
 # Convert CAMERA → ROBOT coordinates (u, v)
