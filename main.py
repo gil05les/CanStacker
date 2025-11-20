@@ -2,10 +2,10 @@ import requests
 import time
 import math
 
-from coord_transform import camera_to_robot
-from detection_one_picture import detect_cans
+from coordination_transformation_camera_to_robot import camera_to_robot
+from detect_single_frame import detect_cans
 from config import BOT_NAME, CONFIG_POSITIONS, DETECTION_FILE, GRIPPER_CLOSE, GRIPPER_OPEN, STACK_POSITIONS, Z_LIFT, Z_PICK, Z_2ND_ROW
-from robot_api import token, get_operator, post_operator, delete_operator, get_tcp_target, put_tcp_target, put_gripper, get_gripper, initialize
+from robot_client import token, get_operator, post_operator, delete_operator, get_tcp_target, put_tcp_target, put_gripper, get_gripper, initialize
 
 bot = BOT_NAME
 token = None
@@ -167,7 +167,7 @@ def config_mode():
 
         print(f"Can {i+1} placed.")
 
-    print("Configuration mode complete. You can now run detection to detect the cans position. Add them to coord_transform.py as CAN_0_CAMERA, etc.")
+    print("Configuration mode complete. You can now run detection to detect the cans position. Add them to coordination_transformation_camera_to_robot.py as CAN_0_CAMERA, etc.")
 
 
 def auto_stack():

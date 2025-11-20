@@ -1,20 +1,19 @@
 # ---------------------------------------------
-# coord_transform.py — CAMERA → ROBOT transform
-# Using 4-point HOMOGRAPHY (perspective correct)
+# coordination_transformation_camera_to_robot.py
+# CAMERA → ROBOT transform using 4-point HOMOGRAPHY
 # ---------------------------------------------
 import numpy as np
 import cv2
 from config import CONFIG_POSITIONS
 
 
-
 # ---------------------------------------------
 # Calibration points
 # ---------------------------------------------
-# Robot coordinates in mm (Robot moves automatically to these positions in the config mode)
+# Robot coordinates in mm (robot moves automatically to these positions in the config mode)
 CAN_0_ROBOT, CAN_1_ROBOT, CAN_2_ROBOT, CAN_3_ROBOT = CONFIG_POSITIONS
 
-# Camera pixel coordinates (px) corresponding to the above robot positions (These have to be measured with detection_one_picture.py)
+# Camera pixel coordinates (px) corresponding to the above robot positions (measure with detect_single_frame.py)
 CAN_0_CAMERA = (420.6000, 263.4000)
 CAN_1_CAMERA = (281.4000, 256.2000)
 CAN_2_CAMERA = (412.2000, 397.8000)
