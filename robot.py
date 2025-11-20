@@ -11,17 +11,27 @@ DETECTION_FILE = "detected_coords.txt"
 # -----------------------------------------------------------
 
 STACK_POSITIONS = [
-    (0,   -350),   # bottom-left can
-    (70,  -350),   # bottom-right can
-    (35,  -350)    # top can (middle)
+    (0,   -400),   # bottom-left can
+    (70,  -400),   # bottom-right can
+    (35,  -400)    # top can (middle)
 ]
 
 # Z heights
+CANHIGHT = 72  # mm
 Z_PICK = 200
 Z_LIFT = 300
-Z_TOP = 240     # slightly higher so top can doesn't crash
+Z_TOP = Z_PICK + CANHIGHT     # slightly higher so top can doesn't crash
 
+CONFIG_POSITIONS = [
+    (0,   -400),
+    (100,  -400),
+    (0,   -300),
+    (100, -300)
+]
 
+# Z heights for config mode
+Z_CONFIG_LIFT = 300
+Z_CONFIG_PLACE = 200
 # -----------------------------------------------------------
 # READ ALL DETECTED CANS FROM FILE
 # -----------------------------------------------------------
@@ -156,6 +166,46 @@ def log_off():
     delete_operator(token)
     print("Logged off.")
 
+def config_mode():
+    print("\n⚙️ ENTERING CONFIG MODE")
+    print("Place 4 cans into the robot's gripper when prompted.\n")
+
+    rotate(45)
+    time.sleep(6)
+
+    rotate(45)
+    time.sleep(6)
+
+    move_to_absolute(0, -450, 300)
+    time.sleep(10)
+
+    for i, (x, y) in enumerate(CONFIG_POSITIONS):
+        print(f"\n📍 Preparing position {i+1}: x={x}, y={y}")
+
+        # Move above target
+        move_to_absolute(x, y, Z_CONFIG_LIFT)
+        time.sleep(5)
+
+        # Lower to place height
+        move_to_absolute(x, y, Z_CONFIG_PLACE)
+        time.sleep(5)
+
+        # OPEN gripper so you can place a can
+        print("🤲 Please place a can into the gripper now.")
+        toggle()  # open
+        time.sleep(4)
+
+        # CLOSE to hold the can
+        toggle()  # close
+        time.sleep(3)
+
+        # Lift away
+        move_to_absolute(x, y, Z_CONFIG_LIFT)
+        time.sleep(5)
+
+        print(f"✔️ Can {i+1} placed at config position.")
+
+    print("\n🎉 CONFIGURATION COMPLETE — 4 CANS ARE PLACED.\n")
 
 # -----------------------------------------------------------
 # MAIN AUTO STACK SEQUENCE
@@ -178,10 +228,10 @@ def auto_stack():
     # Convert to robot coordinates
     detections_robot = [camera_to_robot(u, v) for (u, v) in detections_px]
 
-    # Sort left → right (x coordinate)
-    detections_robot.sort(key=lambda p: p[0])
+# KEEP FILE ORDER → no sorting
+# detections_robot.sort(key=lambda p: p[0])
 
-    print("\n📌 SORTED DETECTIONS (robot coords):")
+    print("\n📌 DETECTIONS (robot coords, file order):")
     for d in detections_robot:
         print(f"   x={d[0]:.1f}, y={d[1]:.1f}")
 
@@ -290,7 +340,7 @@ def initialize():
 # -----------------------------------------------------------
 # COMMAND INTERFACE
 # -----------------------------------------------------------
-print("Commands:\nconnect\nauto\nmove_to x y z\nrotate deg\ntoggle\nget_tcp\nlog_off\nexit")
+print("Commands:\nconnect\nconfig\nauto\nmove_to x y z\nrotate deg\ntoggle\nget_tcp\nlog_off\nexit")
 
 while True:
     cmd = input("\nCommand: ").lower().strip()
@@ -298,6 +348,9 @@ while True:
 
     if cmd == "connect":
         token = log_on()
+
+    elif cmd == "config":
+        config_mode()
 
     elif cmd == "auto":
         auto_stack()
