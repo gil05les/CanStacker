@@ -71,10 +71,10 @@ def toggle():
         put_gripper(GRIPPER_CLOSE)
 
 
-def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack, z_target):
+def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack, z_target, lift_height=Z_LIFT):
     print(f"Picking can {i} at {x_robot:.1f}, {y_robot:.1f}")
 
-    move_to_absolute(x_robot, y_robot, Z_LIFT)
+    move_to_absolute(x_robot, y_robot, lift_height)
     time.sleep(5)
 
     move_to_absolute(x_robot, y_robot, Z_PICK)
@@ -83,11 +83,11 @@ def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack, z_target):
     toggle()
     time.sleep(1)
 
-    move_to_absolute(x_robot, y_robot, Z_LIFT)
+    move_to_absolute(x_robot, y_robot, lift_height)
     time.sleep(10)
 
     print(f"Placing can {i} at {x_stack}, {y_stack} (z target {z_target})")
-    move_to_absolute(x_stack, y_stack, Z_LIFT)
+    move_to_absolute(x_stack, y_stack, lift_height)
     time.sleep(10)
 
     move_to_absolute(x_stack, y_stack, z_target)
@@ -96,7 +96,7 @@ def pick_and_place_can(i, x_robot, y_robot, x_stack, y_stack, z_target):
     toggle()
     time.sleep(1)
 
-    move_to_absolute(x_stack, y_stack, Z_LIFT)
+    move_to_absolute(x_stack, y_stack, lift_height)
     time.sleep(6)
 
 
@@ -220,8 +220,10 @@ def auto_stack():
     for d in detections_robot:
         print(f"x={d[0]:.1f}, y={d[1]:.1f}")
 
+    total_cans = len(detections_robot)
     for i, ((x_r, y_r), (x_stack, y_stack), z_target) in enumerate(zip(detections_robot, stack_positions, z_targets)):
-        pick_and_place_can(i, x_r, y_r, x_stack, y_stack, z_target)
+        travel_lift = Z_LIFT_FINISHED if (total_cans == 6 and i == 5) else Z_LIFT
+        pick_and_place_can(i, x_r, y_r, x_stack, y_stack, z_target, lift_height=travel_lift)
 
     print("Stacking complete.")
     lift_and_log_off()
