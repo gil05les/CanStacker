@@ -14,10 +14,11 @@ from config import CONFIG_POSITIONS
 CAN_0_ROBOT, CAN_1_ROBOT, CAN_2_ROBOT, CAN_3_ROBOT = CONFIG_POSITIONS
 
 # Camera pixel coordinates (px) corresponding to the above robot positions (measure with detect_single_frame.py)
-CAN_0_CAMERA = (420.6000, 263.4000)
-CAN_1_CAMERA = (281.4000, 256.2000)
-CAN_2_CAMERA = (412.2000, 397.8000)
-CAN_3_CAMERA = (275.4000, 391.8000)
+CAN_0_CAMERA = (427.8000, 238.2000)
+CAN_1_CAMERA = (288.6000, 233.4000)
+CAN_2_CAMERA = (425.4000, 375.0000)
+CAN_3_CAMERA = (285.0000 , 371.4000)
+
 
 # ---------------------------------------------
 # Build 3×3 homography H  such that:

@@ -4,7 +4,7 @@ import math
 
 from coordination_transformation_camera_to_robot import camera_to_robot
 from detect_single_frame import detect_cans
-from config import BOT_NAME, CONFIG_POSITIONS, DETECTION_FILE, GRIPPER_CLOSE, GRIPPER_OPEN, STACK_POSITIONS_3, STACK_POSITIONS_6, STACK_Z_TARGETS_3, STACK_Z_TARGETS_6, Z_LIFT, Z_PICK
+from config import BOT_NAME, CONFIG_POSITIONS, DETECTION_FILE, GRIPPER_CLOSE, GRIPPER_OPEN, STACK_POSITIONS_3, STACK_POSITIONS_6, STACK_Z_TARGETS_3, STACK_Z_TARGETS_6, Z_LIFT, Z_LIFT_FINISHED, Z_PICK
 from robot_client import token, get_operator, post_operator, delete_operator, get_tcp_target, put_tcp_target, put_gripper, get_gripper, initialize
 
 bot = BOT_NAME
@@ -125,6 +125,18 @@ def log_off():
         print("Logged off.")
 
 
+def lift_and_log_off():
+    """Move robot up to finish height before logging off."""
+    coords = get_tcp_target()
+    if coords:
+        x, y, _, roll, pitch, yaw = coords
+        move_to_absolute(x, y, Z_LIFT_FINISHED, roll, pitch, yaw)
+        time.sleep(6)
+    else:
+        print("Could not read TCP before lift; skipping move up.")
+    log_off()
+
+
 def config_mode():
     print("Entering config mode")
     print("Place 4 cans into the robot's gripper when prompted.")
@@ -212,6 +224,7 @@ def auto_stack():
         pick_and_place_can(i, x_r, y_r, x_stack, y_stack, z_target)
 
     print("Stacking complete.")
+    lift_and_log_off()
 
 
 def main():
